@@ -21,9 +21,9 @@ suite "Queue":
     proc test(q: SyncQueuePtr[RefInt]) =
       for x in 1..100:
         var y = new(RefInt)
-        y[].v = x
+        y.v = x
         q.put y
     spawn test(q)
     sync()
     for x in 1..100:
-      check: q.get.get[].v == x
+      check: q.get.get.v == x
