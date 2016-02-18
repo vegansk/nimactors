@@ -19,7 +19,6 @@ proc build_test(srcFile: string) =
     mkDir d
 
   --threads: on
-  --gc: boehm
   switch("NimblePath", srcDir)
   switch("out", d / srcFile.splitFile[1].toExe)
 
@@ -27,4 +26,9 @@ proc build_test(srcFile: string) =
 
 task tests, "Build and run tests":
   --run
+  build_test("tests/test_all.nim")
+
+task tests_boehm, "Build and run tests using boehm GC":
+  --run
+  --gc: boehm
   build_test("tests/test_all.nim")

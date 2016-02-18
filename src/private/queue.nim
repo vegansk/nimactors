@@ -6,10 +6,7 @@
 
 import rlocks, lists, fp.option
 
-{.experimental.}
-
-when not defined(boehmGC):
-  {.fatal: "SyncQueue works with boehmgc only!".}
+const useDeepCopy = not defined(boehmGC)
 
 type
   Storage[T] = lists.DoublyLinkedList[T]
@@ -35,9 +32,19 @@ when not defined(syncQueueNoCvt):
   converter toRef*[T](p: ptr T): ref T =
     cast[ref T](p)
 
+when useDeepCopy:
+  proc copy[T](v: T): T =
+    when T is object or T is tuple or T is string or T is seq or T is ref or T is array:
+      deepCopy result, v
+    else:
+      v
+else:
+  template copy(v: untyped): untyped = v
+
 proc put*[T](q: SyncQueue[T], v: T) =
+  var v1 = v
   withRLock q.lock:
-    q.data.append(v)
+    q.data.append(copy(v1))
 
 proc isEmpty*(q: SyncQueue): bool =
   withRLock q.lock:
@@ -49,7 +56,7 @@ proc get*[T](q: SyncQueue[T]): Option[T] =
       result = T.none
     else:
       let n = q.data.head
-      result = n.value.some
+      result = copy(n.value).some
       q.data.remove(n)
 
 proc peek*[T](q: SyncQueue[T]): Option[T] =
@@ -58,4 +65,4 @@ proc peek*[T](q: SyncQueue[T]): Option[T] =
       result = T.none
     else:
       let n = q.data.head
-      result = n.value.some
+      result = copy(n.value).some

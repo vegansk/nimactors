@@ -23,7 +23,9 @@ suite "Queue":
         var y = new(RefInt)
         y.v = x
         q.put y
-    spawn test(q)
-    sync()
     for x in 1..100:
-      check: q.get.get.v == x
+      spawn test(q)
+    sync()
+    GC_fullCollect()
+    while not q.isEmpty:
+      echo q.get.get.v
