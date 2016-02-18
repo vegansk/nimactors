@@ -1,1 +1,1 @@
-echo "Hi!"
+import private.test_queue
