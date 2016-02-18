@@ -28,11 +28,11 @@ proc newSyncQueue*[T](): SyncQueue[T] =
   withRLock result.lock:
     result.data = initDoublyLinkedList[T]()
 
-proc getPtr*[T](q: SyncQueue[T]): SyncQueuePtr[T] =
-  cast[SyncQueuePtr[T]](q)
+converter toPtr*[T](r: ref T): ptr T =
+  cast[ptr T](r)
 
-proc getRef*[T](q: SyncQueuePtr[T]): SyncQueue[T] =
-  cast[SyncQueue[T]](q)
+converter toRef*[T](p: ptr T): ref T =
+  cast[ref T](p)
 
 proc put*[T](q: SyncQueue[T], v: T) =
   withRLock q.lock:
