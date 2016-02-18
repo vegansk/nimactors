@@ -8,6 +8,9 @@ import rlocks, lists, fp.option
 
 {.experimental.}
 
+when not defined(boehmGC):
+  {.fatal: "SyncQueue works with boehmgc only!".}
+
 type
   Storage[T] = lists.DoublyLinkedList[T]
   SyncQueue*[T] = ref SyncQueueObj[T]

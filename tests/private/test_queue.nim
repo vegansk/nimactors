@@ -18,13 +18,12 @@ suite "Queue":
 
   test "Queue multithreaded":
     let q = newSyncQueue[RefInt]()
-    let qp = q.getPtr
-    proc test() =
+    proc test(q: SyncQueuePtr[RefInt]) =
       for x in 1..100:
         var y = new(RefInt)
         y[].v = x
-        qp.getRef.put y
-    spawn test()
+        q.getRef.put y
+    spawn test(q.getPtr)
     sync()
     for x in 1..100:
       check: q.get.get[].v == x

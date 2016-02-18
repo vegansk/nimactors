@@ -19,7 +19,7 @@ proc build_test(srcFile: string) =
     mkDir d
 
   --threads: on
-  --gc: boehm
+  # --gc: boehm
   switch("NimblePath", srcDir)
   switch("out", d / srcFile.splitFile[1].toExe)
 
