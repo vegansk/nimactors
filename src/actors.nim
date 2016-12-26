@@ -54,18 +54,22 @@ proc actorThread[T,S](args: ActorThreadArgs[T,S]) {.thread, nimcall.} =
   let channel = addr args.actor[].channel
   let handler = args.actor[].handler
   var state = args.initialState
-  while true:
-    poll(0)
-    var mmsg = channel[].tryRecv()
-    if mmsg.dataAvailable:
-      if mmsg.msg.isLeft and not handleActorMessage(mmsg.msg.getLeft):
-        return
-      else:
-        let so = handler(args.actor, mmsg.msg.get, state)
-        if so.isDefined:
-          state = so.get
-        else:
+  try:
+    while true:
+      poll(0)
+      var mmsg = channel[].tryRecv()
+      if mmsg.dataAvailable:
+        if mmsg.msg.isLeft and not handleActorMessage(mmsg.msg.getLeft):
           return
+        else:
+          let so = handler(args.actor, mmsg.msg.get, state)
+          if so.isDefined:
+            state = so.get
+          else:
+            return
+  except:
+    #TODO: We need a channel for result
+    discard
 
 proc start*[T,S](a: Actor[T,S], initialState: S): EitherS[Unit] =
   tryS do() -> auto:
