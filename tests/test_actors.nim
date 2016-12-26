@@ -26,8 +26,8 @@ suite "Actor":
       true
 
   test "start":
-    check: start(checkActor, ()).isRight
-    check: start(actor, ()).isRight
+    check: (start checkActor).isRight
+    check: (start actor).isRight
 
   test "handle the messages":
     for x in 1..10:

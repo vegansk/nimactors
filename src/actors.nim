@@ -76,6 +76,9 @@ proc start*[T,S](a: Actor[T,S], initialState: S): EitherS[Unit] =
     a.thread.createThread(actorThread, ActorThreadArgs[T,S](actor: addr a[], initialState: initialState))
     ()
 
+proc start*[T](a: Actor[T,Unit]): EitherS[Unit] =
+  a.start(())
+
 proc stop*[T,S](a: Actor[T,S]): EitherS[Unit] =
   tryS do -> auto:
     a.channel.send(amQuit.left(T))
