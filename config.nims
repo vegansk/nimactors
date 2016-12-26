@@ -1,34 +1,21 @@
-#!/usr/bin/env nim
+import ospaths
 
 mode = ScriptMode.Silent
 
-packageName   = "nimactors"
-version       = "0.0.1"
-author        = "Anatoly Galiulin <galiulin.anatoly@gmail.com>"
-description   = "Actors library for Nim"
-license       = "MIT"
-srcDir        = "src"
+srcDir = "src"
 
-requires "nim >= 0.13.0", "nimfp >= 0.0.3"
-
-import ospaths
-
-proc build_test(srcFile: string) =
+proc buildTest(srcFile: string) =
   let d = thisDir() / "bin"
   if not d.dirExists:
     mkDir d
 
   --threads: on
   switch("NimblePath", srcDir)
+  switch("path", srcDir)
   switch("out", d / srcFile.splitFile[1].toExe)
 
   setCommand("c", srcFile)
 
-task tests, "Build and run tests":
+task test, "Build and run tests":
   --run
-  build_test("tests/test_all.nim")
-
-task tests_boehm, "Build and run tests using boehm GC":
-  --run
-  --gc: boehm
-  build_test("tests/test_all.nim")
+  buildTest("tests/test_all.nim")

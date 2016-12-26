@@ -1,1 +1,1 @@
-import private.test_queue
+import test_actors
