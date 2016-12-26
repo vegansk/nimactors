@@ -14,16 +14,16 @@ suite "Actor":
   var checkActorPtr: ActorPtr[string, Unit]
 
   test "create":
-    actorPtr = actor.initActor do(self: ActorPtr[string, Unit], s: string, _: Unit) -> auto:
+    actorPtr = actor.initActor do(self: ActorPtr[string, Unit], s: string) -> auto:
       checkActorPtr ! s
-      ().some
+      true
     actor.setName("stringActor")
 
-    checkActorPtr = checkActor.initActor do(self: ActorPtr[string, Unit], s: string, _: Unit) -> auto:
+    checkActorPtr = checkActor.initActor do(self: ActorPtr[string, Unit], s: string) -> auto:
       inc callsCount
       if s != fmt"Hello, world #$callsCount!":
         callsCount += 1000
-      ().some
+      true
 
   test "start":
     check: start(checkActor, ()).isRight
