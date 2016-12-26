@@ -1,23 +1,40 @@
 import unittest,
        actors,
-       fp
+       fp,
+       boost.richstring
 
 suite "Actor":
 
   var actor: Actor[string]
   var actorPtr: ActorPtr[string]
 
-  test "can be created":
+  var callsCount = 0
+  var checkActor: Actor[string]
+  var checkActorPtr: ActorPtr[string]
+
+  test "create":
     actorPtr = actor.initActor do(self: ActorPtr[string], s: string) -> auto:
-      echo s
+      checkActorPtr ! s
+      true
     actor.setName("stringActor")
 
-  test "can be started":
+    checkActorPtr = checkActor.initActor do(self: ActorPtr[string], s: string) -> auto:
+      inc callsCount
+      if s != fmt"Hello, world #$callsCount!":
+        callsCount += 1000
+      true
+
+  test "start":
+    check: (start checkActor).isRight
     check: (start actor).isRight
 
-  test "can receive messages":
-    check: (actor ! "Hello, world!").isRight
+  test "handle the messages":
+    for x in 1..10:
+      check: (actor ! fmt"Hello, world #$x!").isRight
 
-  test "can be stopped":
+  test "stop":
     check: (stop actor).isRight
     check: (join actor).isRight
+
+  test "check the result":
+    check: callsCount == 10
