@@ -1,32 +1,33 @@
 import unittest,
        actors,
        fp,
-       boost.richstring
+       boost.richstring,
+       boost.types
 
 suite "Actor":
 
-  var actor: Actor[string]
-  var actorPtr: ActorPtr[string]
+  var actor: Actor[string, Unit]
+  var actorPtr: ActorPtr[string, Unit]
 
   var callsCount = 0
-  var checkActor: Actor[string]
-  var checkActorPtr: ActorPtr[string]
+  var checkActor: Actor[string, Unit]
+  var checkActorPtr: ActorPtr[string, Unit]
 
   test "create":
-    actorPtr = actor.initActor do(self: ActorPtr[string], s: string) -> auto:
+    actorPtr = actor.initActor do(self: ActorPtr[string, Unit], s: string, _: Unit) -> auto:
       checkActorPtr ! s
-      true
+      ().some
     actor.setName("stringActor")
 
-    checkActorPtr = checkActor.initActor do(self: ActorPtr[string], s: string) -> auto:
+    checkActorPtr = checkActor.initActor do(self: ActorPtr[string, Unit], s: string, _: Unit) -> auto:
       inc callsCount
       if s != fmt"Hello, world #$callsCount!":
         callsCount += 1000
-      true
+      ().some
 
   test "start":
-    check: (start checkActor).isRight
-    check: (start actor).isRight
+    check: start(checkActor, ()).isRight
+    check: start(actor, ()).isRight
 
   test "handle the messages":
     for x in 1..10:

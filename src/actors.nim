@@ -3,30 +3,31 @@ import fp,
        asyncdispatch
 
 type
-  ActorHandler*[T] = proc(self: ActorPtr[T], msg: T): bool {.gcsafe.}
+  ActorHandler*[T,S] = proc(self: ActorPtr[T,S], msg: T, state: S): Option[S] {.gcsafe.}
   ActorMessage = enum amQuit
-  Actor*[T] = ref ActorObj[T]
-  ActorPtr*[T] = ptr ActorObj[T]
-  ActorThreadArgs[T] = object
-    actor: ActorPtr[T]
-  ActorObj[T] = object
+  Actor*[T,S] = ref ActorObj[T,S]
+  ActorPtr*[T,S] = ptr ActorObj[T,S]
+  ActorThreadArgs[T,S] = object
+    actor: ActorPtr[T,S]
+    initialState: S
+  ActorObj[T,S] = object of RootObj
     ## The actor type. Actors are always typed
     channel: Channel[Either[ActorMessage, T]]
-    handler: ActorHandler[T]
+    handler: ActorHandler[T,S]
     name: string
-    thread: Thread[ActorThreadArgs[T]]
+    thread: Thread[ActorThreadArgs[T,S]]
 
-proc initActor*[T](actor: var Actor[T], handler: ActorHandler[T]): ActorPtr[T] {.discardable, raises: [].} =
+proc initActor*[T,S](actor: var Actor[T,S], handler: ActorHandler[T,S]): ActorPtr[T,S] {.discardable, raises: [].} =
   new actor
   open(actor.channel)
   actor.handler = handler
   actor.name = ""
   actor[].addr
 
-proc initActor*[T](handler: ActorHandler[T]): Actor[T] {.raises: [].} =
+proc initActor*[T,S](handler: ActorHandler[T,S]): Actor[T,S] {.raises: [].} =
   discard initActor(result, handler)
 
-proc setName*[T](a: Actor[T], name: string): Actor[T] {.discardable, raises: [].} =
+proc setName*[T,S](a: Actor[T,S], name: string): Actor[T,S] {.discardable, raises: [].} =
   a.name = name
   result = a
 
@@ -35,9 +36,10 @@ proc handleActorMessage(a: ActorMessage): bool =
   if a == amQuit:
     result = false
 
-proc actorThread[T](args: ActorThreadArgs[T]) {.thread, nimcall.} =
+proc actorThread[T,S](args: ActorThreadArgs[T,S]) {.thread, nimcall.} =
   let channel = addr args.actor[].channel
   let handler = args.actor[].handler
+  var state = args.initialState
   while true:
     poll(0)
     var mmsg = channel[].tryRecv()
@@ -45,18 +47,21 @@ proc actorThread[T](args: ActorThreadArgs[T]) {.thread, nimcall.} =
       if mmsg.msg.isLeft and not handleActorMessage(mmsg.msg.getLeft):
         return
       else:
-        if not handler(args.actor, mmsg.msg.get):
+        let so = handler(args.actor, mmsg.msg.get, state)
+        if so.isDefined:
+          state = so.get
+        else:
           return
 
-proc start*[T](a: Actor[T]): EitherS[Unit] =
+proc start*[T,S](a: Actor[T,S], initialState: S): EitherS[Unit] =
   flatTryS do() -> auto:
     if a.thread.running:
       "The actor is already running".left(Unit)
     else:
-      a.thread.createThread(actorThread, ActorThreadArgs[T](actor: addr a[]))
+      a.thread.createThread(actorThread, ActorThreadArgs[T,S](actor: addr a[], initialState: initialState))
       ().rightS
 
-proc stop*[T](a: Actor[T]): EitherS[Unit] =
+proc stop*[T,S](a: Actor[T,S]): EitherS[Unit] =
   if not a.thread.running:
     "The actor is not running".left(Unit)
   else:
@@ -64,7 +69,7 @@ proc stop*[T](a: Actor[T]): EitherS[Unit] =
       a.channel.send(amQuit.left(T))
       ()
 
-proc join*[T](a: Actor[T]): EitherS[Unit] =
+proc join*[T,S](a: Actor[T,S]): EitherS[Unit] =
   if not a.thread.running:
     "The actor is not running".left(Unit)
   else:
@@ -72,7 +77,7 @@ proc join*[T](a: Actor[T]): EitherS[Unit] =
       a.thread.joinThread
       ()
 
-proc `!`*[T](a: Actor[T]|ActorPtr[T], msg: T): EitherS[Unit] {.discardable.} =
+proc `!`*[T,S](a: Actor[T,S]|ActorPtr[T,S], msg: T): EitherS[Unit] {.discardable.} =
   if not a.thread.running:
     "The actor is not running".left(Unit)
   else:
