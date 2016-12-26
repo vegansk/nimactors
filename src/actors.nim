@@ -2,7 +2,7 @@ import fp,
        boost.types
 
 type
-  ActorHandler*[T] = proc(self: Actor[T], msg: T) {.gcsafe.}
+  ActorHandler*[T] = proc(self: ActorPtr[T], msg: T) {.gcsafe.}
   ActorMessage = enum amQuit
   ActorThreadArgs[T] = object
     channel: ptr Channel[Either[ActorMessage, T]]
@@ -43,16 +43,24 @@ proc start*[T](a: Actor[T]): EitherS[Unit] =
 
 proc stop*[T](a: Actor[T]): EitherS[Unit] =
   if not a.thread.running:
-    ().rightS
+    "The actor is not running".left(Unit)
   else:
-    a.channel.send(amQuit.left(T))
+    tryS do -> auto:
+      a.channel.send(amQuit.left(T))
+      ()
 
 proc join*[T](a: Actor[T]): EitherS[Unit] =
   if not a.thread.running:
-    ().rightS
-  tryS do() -> auto:
-    a.thread.joinThread
-    ()
+    "The actor is not running".left(Unit)
+  else:
+    tryS do() -> auto:
+      a.thread.joinThread
+      ()
 
-proc `!`*[T](a: Actor[T]|ActorPtr[T]): EitherS[Unit] {.discardable, raises: [].} =
-  discard
+proc `!`*[T](a: Actor[T]|ActorPtr[T], msg: T): EitherS[Unit] {.discardable.} =
+  if not a.thread.running:
+    "The actor is not running".left(Unit)
+  else:
+    tryS do -> auto:
+      a.channel.send(msg.right(ActorMessage))
+      ()
