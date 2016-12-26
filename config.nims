@@ -3,19 +3,32 @@ import ospaths
 mode = ScriptMode.Silent
 
 srcDir = "src"
+let testDir = "tests"
+let buildDir = "nimcache"
 
-proc buildTest(srcFile: string) =
+template commonSettings(binFile = ""): untyped =
+  --threads: on
+  switch("NimblePath", srcDir)
+  switch("path", srcDir)
+  switch("nimcache", buildDir / binFile)
+
+proc buildTest(srcFile, binFile: string) =
   let d = thisDir() / "bin"
   if not d.dirExists:
     mkDir d
 
-  --threads: on
-  switch("NimblePath", srcDir)
-  switch("path", srcDir)
-  switch("out", d / srcFile.splitFile[1].toExe)
+  commonSettings(binFile = binFile)
+  switch("out", d / binFile)
 
   setCommand("c", srcFile)
 
+task clean, "Clean the project":
+  rmDir buildDir
+
 task test, "Build and run tests":
   --run
-  buildTest("tests/test_all.nim")
+  buildTest(testDir / "test_all.nim", "test_all")
+
+task cfg, "Show nim configuration":
+  commonSettings
+  setCommand("dump")
