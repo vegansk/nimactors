@@ -1,5 +1,5 @@
 import unittest,
-       actors,
+       nimactors,
        fp,
        boost.richstring,
        boost.types
@@ -7,11 +7,11 @@ import unittest,
 suite "Actor":
 
   var actor: Actor[string, Unit]
-  var actorPtr: ActorPtr[string, Unit]
+  var actorPtr: ActorPtrT(type actor)
 
   var callsCount = 0
   var checkActor: Actor[string, Unit]
-  var checkActorPtr: ActorPtr[string, Unit]
+  var checkActorPtr: ActorPtrT(type checkActor)
 
   test "create":
     actorPtr = actor.initActor do(self: ActorPtr[string, Unit], s: string) -> auto:

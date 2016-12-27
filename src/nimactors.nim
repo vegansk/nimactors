@@ -18,6 +18,10 @@ type
     name: string
     thread: Thread[ActorThreadArgs[T,S]]
 
+template ActorPtrT*(T: untyped): untyped =
+  var x: T
+  type(x[].addr)
+
 proc initActor*[T,S](actor: var Actor[T,S], handler: ActorHandlerS[T,S]): ActorPtr[T,S] {.discardable, raises: [].} =
   new actor
   open(actor.channel)
