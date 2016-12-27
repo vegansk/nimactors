@@ -2,7 +2,8 @@ import unittest,
        nimactors,
        fp,
        boost.richstring,
-       boost.types
+       boost.types,
+       future
 
 suite "Actor":
 
@@ -19,7 +20,7 @@ suite "Actor":
       true
     actor.setName("stringActor")
 
-    checkActorPtr = checkActor.initActor do(self: ActorPtr[string, Unit], s: string) -> auto:
+    checkActorPtr = checkActor.initActor do(self: ActorPtr[string, Unit], s: string) -> auto {.gcsafe.}:
       inc callsCount
       if s != fmt"Hello, world #$callsCount!":
         callsCount += 1000

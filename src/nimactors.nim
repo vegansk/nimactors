@@ -10,6 +10,7 @@ type
   ActorPtr*[T,S] = ptr ActorObj[T,S]
   ActorThreadArgs[T,S] = object
     actor: ActorPtr[T,S]
+    handler: ActorHandlerS[T,S]
     initialState: S
   ActorObj[T,S] = object of RootObj
     ## The actor type. Actors are always typed
@@ -56,7 +57,6 @@ proc handleActorMessage(a: ActorMessage): bool =
 
 proc actorThread[T,S](args: ActorThreadArgs[T,S]) {.thread, nimcall.} =
   let channel = args.actor.channel.addr
-  let handler = args.actor.handler
   var state = args.initialState
   try:
     var cont = true
@@ -67,7 +67,7 @@ proc actorThread[T,S](args: ActorThreadArgs[T,S]) {.thread, nimcall.} =
         if mmsg.msg.isLeft and not handleActorMessage(mmsg.msg.getLeft):
           cont = false
         else:
-          let so = handler(args.actor, mmsg.msg.get, state)
+          let so = args.handler(args.actor, mmsg.msg.get, state)
           if so.isDefined:
             state = so.get
           else:
@@ -82,7 +82,7 @@ proc actorThread[T,S](args: ActorThreadArgs[T,S]) {.thread, nimcall.} =
 
 proc start*[T,S](a: Actor[T,S], initialState: S): EitherS[Unit] =
   tryS do() -> auto:
-    a.thread.createThread(actorThread, ActorThreadArgs[T,S](actor: addr a[], initialState: initialState))
+    a.thread.createThread(actorThread, ActorThreadArgs[T,S](actor: addr a[], handler: a.handler, initialState: initialState))
     ()
 
 proc start*[T](a: Actor[T,Unit]): EitherS[Unit] =
