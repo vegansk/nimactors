@@ -1,6 +1,7 @@
 import fp,
        boost.types,
-       asyncdispatch
+       asyncdispatch,
+       os
 
 type
   ActorHandlerS*[T,S] = proc(self: ActorPtr[T,S], msg: T, state: S): Option[S] {.gcsafe.}
@@ -69,6 +70,7 @@ proc actorThread[T,S](args: ActorThreadArgs[T,S]) {.thread, nimcall.} =
     while cont:
       try:
         #TODO: https://github.com/nim-lang/Nim/issues/5155
+        sleep(1)
         poll(0)
       except:
         discard
