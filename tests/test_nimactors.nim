@@ -1,9 +1,11 @@
 import unittest,
        nimactors,
+       asyncdispatch,
        fp,
        boost.richstring,
        boost.types,
-       future
+       future,
+       os
 
 suite "Actor":
 
@@ -34,9 +36,13 @@ suite "Actor":
     for x in 1..10:
       check: (actor ! fmt"Hello, world #$x!").isRight
 
+  test "defer message":
+    check: actor.sendDeferred("Hello, world #11!", 2000).isRight
+    sleep(3000)
+
   test "stop":
     check: (stop actor).isRight
     check: (join actor).isRight
 
   test "check the result":
-    check: callsCount == 10
+    check: callsCount == 11

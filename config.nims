@@ -9,7 +9,6 @@ let buildDir = "nimcache"
 template commonSettings(binFile = ""): untyped =
   --threads: on
   switch("NimblePath", srcDir)
-  switch("path", srcDir)
   switch("nimcache", buildDir / binFile)
 
 proc buildTest(srcFile, binFile: string) =

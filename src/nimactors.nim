@@ -5,7 +5,14 @@ import fp,
 type
   ActorHandlerS*[T,S] = proc(self: ActorPtr[T,S], msg: T, state: S): Option[S] {.gcsafe.}
   ActorHandler*[T] = proc(self: ActorPtr[T,Unit], msg: T): bool {.gcsafe.}
-  ActorMessage = enum amQuit
+  ActorMessageType = enum amQuit, amMsg
+  ActorMessage[T] = ref object
+    case `type`: ActorMessageType
+    of amQuit:
+      discard
+    of amMsg:
+      msg: T
+      timeout: int
   Actor*[T,S] = ref ActorObj[T,S]
   ActorPtr*[T,S] = ptr ActorObj[T,S]
   ActorThreadArgs[T,S] = object
@@ -14,10 +21,14 @@ type
     initialState: S
   ActorObj[T,S] = object of RootObj
     ## The actor type. Actors are always typed
-    channel: Channel[Either[ActorMessage, T]]
+    channel: Channel[ActorMessage[T]]
     handler: ActorHandlerS[T,S]
     name: string
     thread: Thread[ActorThreadArgs[T,S]]
+
+proc mkAmQuit[T](): ActorMessage[T] = ActorMessage[T](`type`: amQuit)
+
+proc mkAmMsg[T](msg: T, timeout = 0): ActorMessage[T] = ActorMessage[T](`type`: amMsg, msg: msg, timeout: timeout)
 
 template ActorPtrT*(T: untyped): untyped =
   var x: T
@@ -50,28 +61,35 @@ proc setName*[T,S](a: Actor[T,S], name: string): Actor[T,S] {.discardable, raise
   a.name = name
   result = a
 
-proc handleActorMessage(a: ActorMessage): bool =
-  result = true
-  if a == amQuit:
-    result = false
-
 proc actorThread[T,S](args: ActorThreadArgs[T,S]) {.thread, nimcall.} =
   let channel = args.actor.channel.addr
   var state = args.initialState
   try:
     var cont = true
     while cont:
-      poll(0)
+      try:
+        #TODO: https://github.com/nim-lang/Nim/issues/5155
+        poll(0)
+      except:
+        discard
       var mmsg = channel[].tryRecv()
       if mmsg.dataAvailable:
-        if mmsg.msg.isLeft and not handleActorMessage(mmsg.msg.getLeft):
+        let am = mmsg.msg
+        case am.`type`
+        of amQuit:
           cont = false
-        else:
-          let so = args.handler(args.actor, mmsg.msg.get, state)
-          if so.isDefined:
-            state = so.get
+        of amMsg:
+          if am.timeout <= 0:
+            let so = args.handler(args.actor, am.msg, state)
+            if so.isDefined:
+              state = so.get
+            else:
+              cont = false
           else:
-            cont = false
+            var f: Future[void] = sleepAsync(am.timeout)
+            proc cb() {.closure,gcsafe.} =
+              channel[].send(mkAmMsg(am.msg))
+            f.callback = cb
   finally:
     try:
       channel[].close
@@ -88,17 +106,24 @@ proc start*[T,S](a: Actor[T,S], initialState: S): EitherS[Unit] =
 proc start*[T](a: Actor[T,Unit]): EitherS[Unit] =
   a.start(())
 
-proc stop*[T,S](a: Actor[T,S]): EitherS[Unit] =
+proc sendImpl[T,S](a: Actor[T,S]|ActorPtr[T,S], msg: ActorMessage[T]): EitherS[Unit] {.discardable.} =
   tryS do -> auto:
-    a.channel.send(amQuit.left(T))
+    a.channel.send(msg)
     ()
+
+proc stop*[T,S](a: Actor[T,S]): EitherS[Unit] =
+  a.sendImpl(mkAmQuit[T]())
 
 proc join*[T,S](a: Actor[T,S]): EitherS[Unit] =
   tryS do() -> auto:
     a.thread.joinThread
     ()
 
+proc send*[T,S](a: Actor[T,S]|ActorPtr[T,S], msg: T): EitherS[Unit] {.discardable.} =
+  a.sendImpl(mkAmMsg(msg))
+
 proc `!`*[T,S](a: Actor[T,S]|ActorPtr[T,S], msg: T): EitherS[Unit] {.discardable.} =
-  tryS do -> auto:
-    a.channel.send(msg.right(ActorMessage))
-    ()
+  a.send(msg)
+
+proc sendDeferred*[T,S](a: Actor[T,S]|ActorPtr[T,S], msg: T, timeout: int): EitherS[Unit] {.discardable.} =
+  a.sendImpl(mkAmMsg(msg, timeout))
