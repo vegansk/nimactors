@@ -89,7 +89,7 @@ proc actorThread[T,S](args: ActorThreadArgs[T,S]) {.thread, nimcall.} =
             var f: Future[void] = sleepAsync(am.timeout)
             proc cb() {.closure,gcsafe.} =
               channel[].send(mkAmMsg(am.msg))
-            f.callback = cb
+            `callback=`(f, cb)
   finally:
     try:
       channel[].close
