@@ -6,7 +6,7 @@ type
   ActorHandlerS*[T,S] = proc(self: ActorPtr[T,S], msg: T, state: S): Option[S] {.gcsafe.}
   ActorHandler*[T] = proc(self: ActorPtr[T,Unit], msg: T): bool {.gcsafe.}
   ActorMessageType = enum amQuit, amMsg
-  ActorMessage[T] = ref object
+  ActorMessage[T] = object
     case `type`: ActorMessageType
     of amQuit:
       discard
@@ -87,8 +87,10 @@ proc actorThread[T,S](args: ActorThreadArgs[T,S]) {.thread, nimcall.} =
               cont = false
           else:
             var f: Future[void] = sleepAsync(am.timeout)
+            #TODO: WTF? Is it the new ll bug? It's not working without msg copy
+            let msg = am.msg
             proc cb() {.closure,gcsafe.} =
-              channel[].send(mkAmMsg(am.msg))
+              channel[].send(mkAmMsg(msg))
             `callback=`(f, cb)
   finally:
     try:
