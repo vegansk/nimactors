@@ -79,11 +79,17 @@ proc actorThread[T,S](args: ActorThreadArgs[T,S]) {.thread, nimcall.} =
         of amQuit:
           cont = false
         of amMsg:
-          let so = args.handler(args.actor, am.msg, state)
-          if so.isDefined:
-            state = so.get
+          if am.timeout <= 0:
+            let so = args.handler(args.actor, am.msg, state)
+            if so.isDefined:
+              state = so.get
+            else:
+              cont = false
           else:
-            cont = false
+            var f: Future[void] = sleepAsync(am.timeout)
+            proc cb() {.closure,gcsafe.} =
+              channel[].send(mkAmMsg(am.msg))
+            f.callback = cb
   finally:
     try:
       channel[].close
@@ -120,4 +126,4 @@ proc `!`*[T,S](a: Actor[T,S]|ActorPtr[T,S], msg: T): EitherS[Unit] {.discardable
   a.send(msg)
 
 proc sendDeferred*[T,S](a: Actor[T,S]|ActorPtr[T,S], msg: T, timeout: int): EitherS[Unit] {.discardable.} =
-  a.send(mkAmMsg(msg, timeout))
+  a.sendImpl(mkAmMsg(msg, timeout))
