@@ -1,6 +1,6 @@
 # Package
 
-version       = "0.0.2"
+version       = "0.1.0"
 author        = "Anatoly Galiulin <galiulin.anatoly@gmail.com>"
 description   = "Actors library for Nim"
 license       = "MIT"
