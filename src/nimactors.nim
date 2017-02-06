@@ -5,11 +5,16 @@ import fp,
 
 type
   ActorCommand = enum amQuit
+  ActorBase* = ref ActorBaseObj
+  ChildActor = tuple[
+    `ref`: ActorBase,
+    name: string
+  ]
   ActorBaseObj {.inheritable.} = object
     name: string
     cmdChannel: Channel[ActorCommand]
     thread: Thread[ForeignCell]
-  ActorBase* = ref ActorBaseObj
+    children: seq[ChildActor]
   ActorBasePtr* = ptr ActorBaseObj
   ActorHandlerS*[T,S] = proc(self: ActorPtr[T,S], msg: T, state: S): Option[S] {.gcsafe.}
   ActorHandler*[T] = proc(self: ActorPtr[T,Unit], msg: T): bool {.gcsafe.}
@@ -21,7 +26,7 @@ type
   ActorThreadArgs[T,S] = ref object
     actor: ActorPtr[T,S]
     handler: ActorHandlerS[T,S]
-    initialstate: S
+    initialState: S
   ActorObj[T,S] = object of ActorBaseObj
     ## The actor type. Actors are always typed
     channel: Channel[ActorMessage[T]]
@@ -36,6 +41,7 @@ template ActorPtrT*(T: untyped): untyped =
 proc initActorBase(actor: ActorBase, name: string) =
   actor.cmdChannel.open
   actor.name = ""
+  actor.children = @[]
 
 proc initActor*[T,S](actor: var Actor[T,S], handler: ActorHandlerS[T,S]): ActorPtr[T,S] {.discardable, raises: [].} =
   new actor
@@ -153,4 +159,3 @@ proc `!`*[T,S](a: Actor[T,S]|ActorPtr[T,S], msg: T): EitherS[Unit] {.discardable
 
 proc sendDeferred*[T,S](a: Actor[T,S]|ActorPtr[T,S], msg: T, timeout: int): EitherS[Unit] {.discardable.} =
   a.sendImpl(mkAmMsg(msg, timeout))
-
